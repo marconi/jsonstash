@@ -1,34 +1,40 @@
 package handlers
 
 import (
+	// "fmt"
 	"net/http"
 	"reflect"
 	"strings"
 
-	"github.com/gorilla/mux"
+	"github.com/gorilla/pat"
 	"github.com/marconi/jsonstash/bucket"
 	"github.com/marconi/jsonstash/utils"
 )
 
-type RESTView struct {
-	Router *mux.Router
+type RestHandler struct {
+	Router *pat.Router
 	Stash  *bucket.Stash
 }
 
-func NewRestView() *mux.Router {
-	rv := &RESTView{
-		Router: mux.NewRouter(),
+func NewRestHandler() *pat.Router {
+	rh := &RestHandler{
+		Router: pat.New(),
 		Stash:  bucket.NewStash(),
 	}
 
-	// mount views
-	bucketView := &BucketView{RESTView: rv, Stash: rv.Stash}
-	rv.AddView("/buckets", bucketView, []string{"GET", "POST"})
+	// mount handlers
+	rh.MountHandler("/buckets/{key:[-_0-9A-Za-z]+}",
+		NewBucketHandler(rh),
+		[]string{"GET", "POST", "DELETE"})
 
-	return rv.Router
+	rh.MountHandler("/buckets",
+		NewBucketListHandler(rh),
+		[]string{"GET", "POST"})
+
+	return rh.Router
 }
 
-func (rv *RESTView) AddView(path string, view interface{}, methods []string) {
+func (rh *RestHandler) MountHandler(path string, view interface{}, methods []string) {
 	// factory function that returns a handler wrapper
 	wrapper := func(method *reflect.Value) func(w http.ResponseWriter, r *http.Request) {
 		f := func(w http.ResponseWriter, r *http.Request) {
@@ -42,16 +48,20 @@ func (rv *RESTView) AddView(path string, view interface{}, methods []string) {
 	// add handler for each method
 	for _, m := range methods {
 		m = strings.Title(strings.ToLower(m))
-		method := reflect.ValueOf(view).MethodByName(m)
-		rv.Router.HandleFunc(path, wrapper(&method)).Methods(m)
+		routerMethod := reflect.ValueOf(rh.Router).MethodByName(m)
+		handlerMethod := reflect.ValueOf(view).MethodByName(m)
+
+		pathVal := reflect.ValueOf(path)
+		handlerVal := reflect.ValueOf(wrapper(&handlerMethod))
+		routerMethod.Call([]reflect.Value{pathVal, handlerVal})
 	}
 }
 
-func (rv *RESTView) JSONResponse(w http.ResponseWriter, r *http.Request, data []string) {
+func (rh *RestHandler) JSONResponse(w http.ResponseWriter, r *http.Request, data []string) {
 	w.Header().Set("Content-Type", "application/json")
 	w.Write([]byte(utils.ToJSON(data)))
 }
 
-func (rv *RESTView) Response(w http.ResponseWriter, r *http.Request, data string) {
+func (rh *RestHandler) Response(w http.ResponseWriter, r *http.Request, data string) {
 	w.Write([]byte(data))
 }

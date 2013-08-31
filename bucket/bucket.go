@@ -72,11 +72,16 @@ func NewStash() *Stash {
 	return &Stash{Buckets: make(map[string]*Bucket)}
 }
 
-func (s *Stash) Add(key string) *Bucket {
+func (s *Stash) Add(key string) (*Bucket, error) {
+	// check that this is a new bucket
+	if _, ok := s.Buckets[key]; ok {
+		return nil, errors.New("Key already exists.")
+	}
+
 	// create new bucket and return it
 	b := NewBucket()
 	s.Buckets[key] = b
-	return b
+	return b, nil
 }
 
 func (s *Stash) Get(key string) (*Bucket, error) {
