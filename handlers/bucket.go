@@ -87,6 +87,9 @@ func NewBucketHandler(rh *RestHandler) *BucketHandler {
 
 func (bh *BucketHandler) Get(w http.ResponseWriter, r *http.Request) {
 	bkey := r.URL.Query().Get(":bkey")
+
+	// TODO: implement querying by range
+
 	bucket, err := bh.Stash.Get(bkey)
 	if err != nil {
 		log.Println("Invalid bucket key: ", bkey)
