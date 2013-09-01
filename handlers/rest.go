@@ -1,7 +1,6 @@
 package handlers
 
 import (
-	// "fmt"
 	"net/http"
 	"reflect"
 	"strings"
@@ -23,7 +22,11 @@ func NewRestHandler() *pat.Router {
 	}
 
 	// mount handlers
-	rh.MountHandler("/buckets/{key:[-_0-9A-Za-z]+}",
+	rh.MountHandler("/buckets/{bkey:[-_0-9A-Za-z]+}/{vkey:[-_0-9A-Za-z]+}",
+		NewValueHandler(rh),
+		[]string{"GET", "DELETE", "PUT"})
+
+	rh.MountHandler("/buckets/{bkey:[-_0-9A-Za-z]+}",
 		NewBucketHandler(rh),
 		[]string{"GET", "POST", "DELETE"})
 
@@ -57,9 +60,13 @@ func (rh *RestHandler) MountHandler(path string, view interface{}, methods []str
 	}
 }
 
-func (rh *RestHandler) JSONResponse(w http.ResponseWriter, r *http.Request, data []string) {
+func (rh *RestHandler) ListJSONResponse(w http.ResponseWriter, r *http.Request, data []string) {
+	rh.JSONResponse(w, r, utils.ToJSON(data))
+}
+
+func (rh *RestHandler) JSONResponse(w http.ResponseWriter, r *http.Request, data string) {
 	w.Header().Set("Content-Type", "application/json")
-	w.Write([]byte(utils.ToJSON(data)))
+	w.Write([]byte(data))
 }
 
 func (rh *RestHandler) Response(w http.ResponseWriter, r *http.Request, data string) {

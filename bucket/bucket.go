@@ -15,7 +15,11 @@ func NewBucket() *Bucket {
 	return &Bucket{Index: make(map[string]int)}
 }
 
-func (b *Bucket) Add(key string, val string) {
+func (b *Bucket) Add(key string, val string) error {
+	if _, ok := b.Index[key]; ok {
+		return errors.New("Value with that key already exists.")
+	}
+
 	// append the new value and remember its index
 	values := append(b.Values, val)
 	index := len(values) - 1
@@ -23,6 +27,7 @@ func (b *Bucket) Add(key string, val string) {
 
 	// store the index
 	b.Index[key] = index
+	return nil
 }
 
 func (b *Bucket) Get(key string) (string, error) {
@@ -32,7 +37,7 @@ func (b *Bucket) Get(key string) (string, error) {
 			return b.Values[index], nil
 		}
 	}
-	return "", errors.New("Invalid key")
+	return "", errors.New("Invalid value")
 }
 
 func (b *Bucket) GetAll() []string {
@@ -55,6 +60,29 @@ func (b *Bucket) Range(r *BucketRange) ([]string, error) {
 	return rVals, nil
 }
 
+func (b *Bucket) Update(key string, val string) error {
+	// check that the key exists and has valid index
+	if index, ok := b.Index[key]; ok {
+		if index < len(b.Values) {
+			b.Values[index] = val
+			return nil
+		}
+	}
+	return errors.New("Invalid value")
+}
+
+func (b *Bucket) Delete(key string) error {
+	// check that the key exists and has valid index
+	if i, ok := b.Index[key]; ok {
+		if i < len(b.Values) {
+			b.Values = append(b.Values[:i], b.Values[i+1:]...)
+			delete(b.Index, key)
+			return nil
+		}
+	}
+	return errors.New("Invalid value")
+}
+
 type BucketRange struct {
 	Start int
 	Stop  int
@@ -75,7 +103,7 @@ func NewStash() *Stash {
 func (s *Stash) Add(key string) (*Bucket, error) {
 	// check that this is a new bucket
 	if _, ok := s.Buckets[key]; ok {
-		return nil, errors.New("Key already exists.")
+		return nil, errors.New("Bucket already exists.")
 	}
 
 	// create new bucket and return it
@@ -89,7 +117,16 @@ func (s *Stash) Get(key string) (*Bucket, error) {
 	if b, ok := s.Buckets[key]; ok {
 		return b, nil
 	}
-	return nil, errors.New("Invalid key")
+	return nil, errors.New("Invalid bucket")
+}
+
+func (s *Stash) Delete(key string) error {
+	// check that the key is valid
+	if _, ok := s.Buckets[key]; ok {
+		delete(s.Buckets, key)
+		return nil
+	}
+	return errors.New("Invalid bucket")
 }
 
 func (s *Stash) GetBucketNames() []string {
